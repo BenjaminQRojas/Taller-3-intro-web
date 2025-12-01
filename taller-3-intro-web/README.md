@@ -7,6 +7,30 @@ Proyecto Next.js con Prisma 7 y PostgreSQL. Incluye generación de datos de prue
 - Node.js 18+ (recomendado LTS)
 - PostgreSQL accesible con una `DATABASE_URL`
 
+## Guía rápida (TL;DR)
+
+Para dejar todo funcionando desde cero:
+
+```bash
+# 1) Copiar variables de entorno
+cp .env.example .env
+# 2) Editar .env y fijar DATABASE_URL
+# 3) Instalar dependencias
+npm install
+# 4) Generar cliente Prisma
+npx prisma generate
+# 5) Crear/aplicar migraciones (dev)
+npx prisma migrate dev --name init
+# 6) Poblar datos de ejemplo
+npm run seed
+# 7) Levantar el servidor
+npm run dev
+```
+
+Endpoint disponible:
+- `GET /api/sales` con filtros opcionales y paginación.
+- Ejemplo: `/api/sales?category=Ropa&page=2&limit=25`
+
 ## Configuración inicial
 
 1. Copia `.env.example` a `.env` y completa `DATABASE_URL`:
@@ -28,7 +52,7 @@ npm install
 npx prisma generate
 ```
 
-4. (Opcional) Ejecuta migraciones si aún no existen o si hiciste cambios en el esquema:
+4. Ejecuta migraciones (si es la primera vez o hiciste cambios en el esquema):
 
 ```bash
 # Crear una nueva migración (desarrollo)
