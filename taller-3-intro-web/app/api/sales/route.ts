@@ -1,4 +1,3 @@
-// app/api/sales/route.ts
 import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
@@ -23,7 +22,6 @@ export async function GET(request: NextRequest) {
   const startDate = startDateStr ? new Date(startDateStr) : undefined;
   const endDate = endDateStr ? new Date(endDateStr) : undefined;
 
-  // Paginación (valores por defecto: page=1, limit=50)
   const pageStr = searchParams.get('page');
   const limitStr = searchParams.get('limit');
   const page = pageStr ? parseInt(pageStr) : 1;
@@ -32,7 +30,6 @@ export async function GET(request: NextRequest) {
   const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 50;
   const skip = (safePage - 1) * safeLimit;
 
-  // Armamos filtros compuestos evitando NaN y fechas inválidas
   const amountFilter =
     minAmount !== undefined || maxAmount !== undefined
       ? {
@@ -65,7 +62,6 @@ export async function GET(request: NextRequest) {
       : {};
 
   try {
-    // Construimos el filtro una sola vez para reutilizar en findMany y count
     const where = {
       ...(category && { category }),
       ...(region && { region }),

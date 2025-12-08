@@ -71,22 +71,22 @@ export default function SaleDetailPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
             </div>
         );
     }
 
     if (error || !sale) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
                 <Card className="max-w-md">
                     <CardHeader>
                         <CardTitle className="text-red-600">Error</CardTitle>
                         <CardDescription>{error || 'Venta no encontrada'}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button onClick={() => router.push('/dashboard')} className="w-full">
+                        <Button onClick={() => router.push('/dashboard')} className="w-full bg-gray-900 text-white hover:bg-gray-800">
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             Volver al Dashboard
                         </Button>
@@ -99,7 +99,6 @@ export default function SaleDetailPage() {
     const saleDate = new Date(sale.date);
     const pricePerUnit = sale.amount / sale.quantity;
 
-    // Datos para gráfico de distribución de monto
     const doughnutData = {
         labels: ['Monto Total', 'Precio Unitario'],
         datasets: [
@@ -119,7 +118,6 @@ export default function SaleDetailPage() {
         ],
     };
 
-    // Simulación de tendencia de ventas (datos de ejemplo)
     const lineData = {
         labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
         datasets: [
@@ -152,9 +150,8 @@ export default function SaleDetailPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 p-4 md:p-8">
+        <div className="min-h-screen bg-gray-50 p-4 md:p-8">
             <div className="max-w-6xl mx-auto">
-                {/* Header */}
                 <div className="mb-6">
                     <Button
                         variant="ghost"
@@ -174,7 +171,7 @@ export default function SaleDetailPage() {
 
                 {/* Información Principal */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <Card className="border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+                    <Card className="hover:shadow-lg transition-shadow">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
                                 <DollarSign className="h-4 w-4" />
@@ -188,7 +185,7 @@ export default function SaleDetailPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-l-4 border-purple-500 hover:shadow-lg transition-shadow">
+                    <Card className="hover:shadow-lg transition-shadow">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
                                 <Package className="h-4 w-4" />
@@ -202,7 +199,7 @@ export default function SaleDetailPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-l-4 border-green-500 hover:shadow-lg transition-shadow">
+                    <Card className="hover:shadow-lg transition-shadow">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
                                 <TrendingUp className="h-4 w-4" />
@@ -216,7 +213,7 @@ export default function SaleDetailPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-l-4 border-orange-500 hover:shadow-lg transition-shadow">
+                    <Card className="hover:shadow-lg transition-shadow">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
                                 <Users className="h-4 w-4" />
