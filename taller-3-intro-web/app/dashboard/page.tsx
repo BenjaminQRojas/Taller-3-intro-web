@@ -1,5 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
+import { setDateRange as setDateRangeAction, setCategory as setCategoryAction, setSearchTerm as setSearchTermAction, setDate as setDateAction, resetFilters } from '@/store/slices/filtersSlice';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -25,10 +28,9 @@ import {
 import { fetchRecentSales } from '@/lib/sales';
 
 const Dashboard = () => {
-  const [dateRange, setDateRange] = useState('30');
-  const [category, setCategory] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const dispatch = useDispatch();
+  const { dateRange, category, searchTerm, date } = useSelector((state: RootState) => state.filters);
+  const [localDate, setLocalDate] = useState<Date | undefined>(date ? new Date(date) : new Date());
 
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState<{ revenue: number; units: number; aov: number; avgPricePerUnit: number; count: number } | null>(null);
@@ -102,7 +104,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="date-range">Rango de Fechas</Label>
-              <Select value={dateRange} onValueChange={setDateRange}>
+              <Select value={dateRange} onValueChange={(v) => dispatch(setDateRangeAction(v))}>
                 <SelectTrigger id="date-range">
                   <SelectValue placeholder="Seleccionar período" />
                 </SelectTrigger>
@@ -117,7 +119,7 @@ const Dashboard = () => {
 
             <div className="space-y-2">
               <Label htmlFor="category">Categoría</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(v) => dispatch(setCategoryAction(v))}>
                 <SelectTrigger id="category">
                   <SelectValue placeholder="Todas las categorías" />
                 </SelectTrigger>
@@ -133,24 +135,41 @@ const Dashboard = () => {
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarDays className="mr-2 h-4 w-4" />
-                    {date ? date.toLocaleDateString('es-CL') : 'Seleccionar fecha'}
+                    {localDate ? localDate.toLocaleDateString('es-CL') : 'Seleccionar fecha'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={date} onSelect={setDate} autoFocus />
+                  <Calendar mode="single" selected={localDate} onSelect={(d) => setLocalDate(d ?? undefined)} autoFocus />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="search">Buscar</Label>
-              <Input id="search" type="text" placeholder="Buscar productos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Input id="search" type="text" placeholder="Buscar productos..." value={searchTerm} onChange={(e) => dispatch(setSearchTermAction(e.target.value))} />
             </div>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="default" size="sm">Aplicar Filtros</Button>
-            <Button variant="outline" size="sm">Limpiar</Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                dispatch(setDateAction(localDate ? new Date(localDate).toISOString().slice(0, 10) : null));
+              }}
+            >
+              Aplicar Filtros
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                dispatch(resetFilters());
+                setLocalDate(new Date());
+              }}
+            >
+              Limpiar
+            </Button>
           </div>
         </CardContent>
       </Card>
