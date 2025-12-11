@@ -204,32 +204,14 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros (nueva implementación controlada por Redux internamente) */}
       <DashboardFilters
-        dateRange={dateRange}
-        category={category}
-        searchTerm={searchTerm}
-        localDate={localDate}
         categoriesList={categoriesList}
-        onDateRangeChange={(v) => dispatch(setDateRangeAction(v))}
-        onCategoryChange={(v) => dispatch(setCategoryAction(v))}
-        onSearchChange={(v) => dispatch(setSearchTermAction(v))}
-        setLocalDate={(d) => setLocalDate(d)}
-        onApply={() => {
-          const formatLocal = (d: Date) => {
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${day}`;
-          };
-          const exactStr = localDate ? formatLocal(localDate) : undefined;
-          dispatch(setDateAction(exactStr ?? null));
+        onApplyFilters={(filters) => {
+          // filters contain { dateRange, category, searchTerm, date }
+          // Set the date in Redux and then mark applied snapshot
+          dispatch(setDateAction(filters.date ?? null));
           dispatch(applyFilters());
-          setTablePage(1);
-        }}
-        onClear={() => {
-          dispatch(resetFilters());
-          setLocalDate(undefined);
           setTablePage(1);
         }}
       />

@@ -1,4 +1,14 @@
 "use client";
+import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
+import {
+  setDateRange as setDateRangeAction,
+  setCategory as setCategoryAction,
+  setSearchTerm as setSearchTermAction,
+  setDate as setDateAction,
+  resetFilters,
+} from '@/store/slices/filtersSlice';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -8,33 +18,54 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Filter, CalendarDays } from 'lucide-react';
 
-type Props = {
-  dateRange: string;
-  category: string;
-  searchTerm: string;
-  localDate: Date | undefined;
+interface DashboardFiltersProps {
   categoriesList: string[];
-  onApply: () => void;
-  onClear: () => void;
-  onDateRangeChange: (v: string) => void;
-  onCategoryChange: (v: string) => void;
-  onSearchChange: (v: string) => void;
-  setLocalDate: (d: Date | undefined) => void;
-};
+  onApplyFilters: (filters: {
+    dateRange: string;
+    category: string;
+    searchTerm: string;
+    date: string | undefined;
+  }) => void;
+}
 
-export default function DashboardFilters({
-  dateRange,
-  category,
-  searchTerm,
-  localDate,
-  categoriesList,
-  onApply,
-  onClear,
-  onDateRangeChange,
-  onCategoryChange,
-  onSearchChange,
-  setLocalDate,
-}: Props) {
+const DashboardFilters: React.FC<DashboardFiltersProps> = ({ categoriesList, onApplyFilters }) => {
+  const dispatch = useDispatch();
+  const { dateRange, category, searchTerm, date } = useSelector((state: RootState) => state.filters);
+  const [localDate, setLocalDate] = useState<Date | undefined>(date ? new Date(date) : new Date());
+
+  const handleApplyFilters = () => {
+    const exact = localDate ? new Date(localDate) : undefined;
+    const exactStr = exact
+      ? new Date(exact.getTime() - exact.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+      : undefined;
+    
+    dispatch(setDateAction(exactStr ?? null));
+    
+    onApplyFilters({
+      dateRange,
+      category,
+      searchTerm,
+      date: exactStr,
+    });
+  };
+
+  const handleResetFilters = () => {
+    dispatch(resetFilters());
+    const now = new Date();
+    setLocalDate(now);
+    
+    const exactStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10);
+    
+    onApplyFilters({
+      dateRange: '30',
+      category: 'all',
+      searchTerm: '',
+      date: undefined,
+    });
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader>
@@ -44,10 +75,10 @@ export default function DashboardFilters({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label htmlFor="date-range">Rango de Fechas</Label>
-            <Select value={dateRange} onValueChange={onDateRangeChange}>
+            <Select value={dateRange} onValueChange={(v) => dispatch(setDateRangeAction(v))}>
               <SelectTrigger id="date-range">
                 <SelectValue placeholder="Seleccionar período" />
               </SelectTrigger>
@@ -62,13 +93,15 @@ export default function DashboardFilters({
 
           <div className="space-y-2">
             <Label htmlFor="category">Categoría</Label>
-            <Select value={category} onValueChange={onCategoryChange}>
+            <Select value={category} onValueChange={(v) => dispatch(setCategoryAction(v))}>
               <SelectTrigger id="category">
                 <SelectValue placeholder="Todas las categorías" />
               </SelectTrigger>
               <SelectContent>
                 {categoriesList.map((c) => (
-                  <SelectItem key={c} value={c}>{c === 'all' ? 'Todas' : c}</SelectItem>
+                  <SelectItem key={c} value={c}>
+                    {c === 'all' ? 'Todas' : c}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -84,22 +117,39 @@ export default function DashboardFilters({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={localDate} onSelect={(d) => setLocalDate(d ?? undefined)} autoFocus />
+                <Calendar
+                  mode="single"
+                  selected={localDate}
+                  onSelect={(d) => setLocalDate(d ?? undefined)}
+                  autoFocus
+                />
               </PopoverContent>
             </Popover>
           </div>
 
-          <div className="space-y-2 md:col-span-3">
+          <div className="space-y-2">
             <Label htmlFor="search">Buscar</Label>
-            <Input id="search" type="text" placeholder="Buscar productos..." value={searchTerm} onChange={(e) => onSearchChange(e.target.value)} />
+            <Input
+              id="search"
+              type="text"
+              placeholder="Buscar productos..."
+              value={searchTerm}
+              onChange={(e) => dispatch(setSearchTermAction(e.target.value))}
+            />
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant="default" size="lg" onClick={onApply}>Aplicar Filtros</Button>
-          <Button variant="outline" size="lg" onClick={onClear}>Limpiar</Button>
+          <Button variant="default" size="sm" onClick={handleApplyFilters}>
+            Aplicar Filtros
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleResetFilters}>
+            Limpiar
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
-}
+};
+
+export default DashboardFilters;
