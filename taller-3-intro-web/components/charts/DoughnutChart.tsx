@@ -14,5 +14,5 @@ export default function DoughnutChart({ labels, data: values, colors, label = 'D
       },
     ],
   }
-  return <div className="h-64"><Doughnut data={data} options={{ ...baseOptions, scales: {} } as any} /></div>
+  return <div className="h-48 sm:h-64"><Doughnut data={data} options={{ ...baseOptions, scales: {} } as any} /></div>
 }

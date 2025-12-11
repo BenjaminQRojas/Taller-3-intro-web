@@ -5,5 +5,5 @@ type Props = { labels: string[]; datasets: { label: string; data: number[]; back
 
 export default function BarChart({ labels, datasets }: Props) {
   const data = { labels, datasets }
-  return <div className="h-64"><Bar data={data} options={baseOptions as any} /></div>
+  return <div className="h-48 sm:h-64"><Bar data={data} options={baseOptions as any} /></div>
 }

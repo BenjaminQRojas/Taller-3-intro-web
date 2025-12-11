@@ -1,6 +1,6 @@
-# Taller 3 — Intro Web (Next.js + Prisma)
+# Taller 3 — Intro Web (Next.js + Prisma + Redux + Charts)
 
-Proyecto Next.js con Prisma 7 y PostgreSQL. Incluye generación de datos de prueba (seed) y un cliente de Prisma generado en una ruta personalizada.
+Aplicación Next.js (App Router) con Prisma 7 y PostgreSQL que muestra un dashboard interactivo de ventas con filtros globales (Redux Toolkit), 5+ tipos de gráficos (Chart.js), tabla paginada y página de detalle. Persistimos filtros aplicados entre navegaciones y recargas usando `sessionStorage`.
 
 ## Requisitos
 
@@ -27,9 +27,16 @@ npm run seed
 npm run dev
 ```
 
-Endpoint disponible:
-- `GET /api/sales` con filtros opcionales y paginación.
-- Ejemplo: `/api/sales?category=Ropa&page=2&limit=25`
+Endpoints principales:
+- `GET /api/sales` lista y pagina ventas: filtros `category`, `searchTerm`, `startDate`, `endDate`, `page`, `limit`.
+- `GET /api/sales/[id]` detalle de una venta.
+- `GET /api/metrics/overview` KPIs: revenue, units, AOV, avg price, count.
+- `GET /api/metrics/timeseries` series por día.
+- `GET /api/metrics/by-category` agregados por categoría.
+- `GET /api/metrics/by-region` agregados por región.
+- `GET /api/metrics/top-products` top N productos por revenue (respeta filtro de categoría).
+- `GET /api/metrics/age-buckets` distribución por rangos de edad.
+- `GET /api/categories` categorías distintas.
 
 ## Configuración inicial
 
@@ -131,6 +138,16 @@ npm run dev
 
 Accede a `http://localhost:3000`.
 
+Ruta principal: `/dashboard`
+- Filtros: rango, categoría, fecha específica, búsqueda; botón “Aplicar Filtros” y “Limpiar”.
+- Persistencia: al aplicar, se guardan filtros en Redux y `sessionStorage`.
+- Gráficos (Chart.js): Line, Bar, Doughnut, Polar Area, Histograma (bins calculados). Todos se actualizan con filtros.
+- Tabla de ventas: paginada, IDs clicables a `/detalle/[id]`, búsqueda rápida por ID en el header.
+
+Detalle: `/detalle/[id]`
+- Tarjetas de KPIs básicos, gráficas Doughnut y Line, metadatos.
+- Botón “Volver al Dashboard”.
+
 ## Scripts útiles
 
 - `npm run dev`: Arranca el servidor de desarrollo
@@ -138,6 +155,34 @@ Accede a `http://localhost:3000`.
 - `npm run start`: Sirve la app compilada
 - `npm run lint`: Linter
 - `npm run seed`: (propuesto) Ejecuta el seed `npx tsx prisma/seed.ts`
+
+## Estado global y persistencia
+
+- Redux Toolkit: `store/slices/filtersSlice.ts` maneja filtros actuales y “aplicados”.
+- `applyFilters` copia los filtros actuales al snapshot aplicado.
+- `sessionStorage`: guardamos los campos aplicados para rehidratarlos al recargar.
+- El dashboard usa los filtros aplicados para fetch y cálculo de fechas (local `YYYY-MM-DD` para evitar desfases por zona horaria).
+
+## Estilo y componentes
+
+- Tailwind CSS para diseño responsive (mobile-first).
+- Componentes UI (`components/ui`): Card, Button, Select, Popover, Calendar, Input.
+- Gráficos en `components/charts/*` con configuración responsive.
+
+## Requisitos del taller (checklist)
+
+- Next.js 14+ con API interna, DB SQL y Prisma ORM: ✅
+- Redux Toolkit para estado global y flujo entre filtros/resultados: ✅
+- Charts con 5+ tipos y actualización dinámica por filtros: ✅
+- Mobile-first y uso de una librería de componentes: ✅
+- Entidad principal (Sale), API de lectura con validación y errores, datos desde DB: ✅
+
+## Notas de implementación
+
+- Evitamos desajustes de hidratación añadiendo `suppressHydrationWarning` en el layout.
+- Fechas: se manejan como `YYYY-MM-DD` local (sin `Date.toISOString()`), para DD/MM/YYYY en UI sin desfase.
+
+## Troubleshooting
 
 ## Estructura relevante
 
@@ -152,3 +197,6 @@ Accede a `http://localhost:3000`.
 	- Este proyecto usa una ruta de salida personalizada para el cliente (`app/generated/prisma`). Importa desde `../app/generated/prisma/client`.
 - Error de validación por `url` en `schema.prisma`
 	- En Prisma 7, la propiedad `url` se define en `prisma.config.ts` y `.env`, no dentro del `schema.prisma`.
+
+- Advertencia de hidratación (React):
+	- Si ves `A tree hydrated but some attributes...`, suele ser por extensiones del navegador que alteran el DOM. Se mitiga con `suppressHydrationWarning`.

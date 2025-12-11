@@ -154,9 +154,9 @@ export default function SaleDetailPage() {
             <div className="max-w-6xl mx-auto">
                 <div className="mb-6">
                     <Button
-                        variant="ghost"
+                        variant="default"
                         onClick={() => router.push('/dashboard')}
-                        className="mb-4 hover:bg-white/80 transition-all"
+                        className="mb-4 bg-slate-900 text-white hover:bg-slate-800 transition-colors px-4 py-2 text-sm md:text-base"
                     >
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Volver al Dashboard
@@ -273,7 +273,7 @@ export default function SaleDetailPage() {
                 </Card>
 
                 {/* Gráficos */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
                     <Card className="hover:shadow-lg transition-shadow">
                         <CardHeader>
                             <CardTitle>Distribución de Montos</CardTitle>
@@ -281,7 +281,7 @@ export default function SaleDetailPage() {
                                 Comparación entre monto total y precio unitario
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="flex justify-center items-center h-64">
+                        <CardContent className="flex justify-center items-center h-48 sm:h-64">
                             <Doughnut
                                 data={doughnutData}
                                 options={{
@@ -304,7 +304,7 @@ export default function SaleDetailPage() {
                                 Proyección mensual basada en esta venta
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="h-64">
+                        <CardContent className="h-48 sm:h-64">
                             <Line
                                 data={lineData}
                                 options={{

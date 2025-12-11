@@ -1,8 +1,10 @@
 "use client";
 import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
-import { setDateRange as setDateRangeAction, setCategory as setCategoryAction, setSearchTerm as setSearchTermAction, setDate as setDateAction, resetFilters } from '@/store/slices/filtersSlice';
+import { setDateRange as setDateRangeAction, setCategory as setCategoryAction, setSearchTerm as setSearchTermAction, setDate as setDateAction, resetFilters, applyFilters } from '@/store/slices/filtersSlice';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -11,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Filter, CalendarDays } from 'lucide-react';
+import DashboardFilters from '@/components/filters/DashboardFilters';
+import KpiGrid from '@/components/KpiGrid';
 import LineChart from '@/components/charts/LineChart';
 import BarChart from '@/components/charts/BarChart';
 import DoughnutChart from '@/components/charts/DoughnutChart';
@@ -25,17 +29,17 @@ import {
   fetchAgeBuckets,
   fetchCategories,
 } from '@/lib/metrics';
-import { fetchRecentSales } from '@/lib/sales';
+import { fetchRecentSales, fetchSalesPaged } from '@/lib/sales';
+import type { Sale, SalesResponse } from '@/lib/sales';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
-  const { dateRange, category, searchTerm, date } = useSelector((state: RootState) => state.filters);
-  const [localDate, setLocalDate] = useState<Date | undefined>(date ? new Date(date) : new Date());
-  // Committed filters used for data fetching (apply-only updates)
-  const [commitDateRange, setCommitDateRange] = useState<string>(dateRange);
-  const [commitCategory, setCommitCategory] = useState<string>(category);
-  const [commitSearchTerm, setCommitSearchTerm] = useState<string>(searchTerm);
-  const [commitDate, setCommitDate] = useState<string | undefined>(date || undefined);
+  const { dateRange, category, searchTerm, date, appliedDateRange, appliedCategory, appliedSearchTerm, appliedDate } = useSelector((state: RootState) => state.filters);
+  const parseYMDLocal = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+  const [localDate, setLocalDate] = useState<Date | undefined>(date ? parseYMDLocal(date) : undefined);
 
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState<{ revenue: number; units: number; aov: number; avgPricePerUnit: number; count: number } | null>(null);
@@ -47,16 +51,32 @@ const Dashboard = () => {
   const [histogram, setHistogram] = useState<{ labels: string[]; counts: number[] } | null>(null);
   const [histogramMetric, setHistogramMetric] = useState<'amount' | 'quantity'>('amount');
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
+  const [recentSales, setRecentSales] = useState<Sale[] | null>(null);
+  const [tableSales, setTableSales] = useState<Sale[] | null>(null);
+  const [tablePage, setTablePage] = useState<number>(1);
+  const [tableLimit, setTableLimit] = useState<number>(10);
+  const [tablePages, setTablePages] = useState<number>(1);
+  const [saleSearchId, setSaleSearchId] = useState<string>('');
+  const router = useRouter();
 
   const { startDate, endDate } = useMemo(() => {
-    const end = commitDate ? new Date(commitDate) : new Date();
-    const range = parseInt(commitDateRange || '30');
-    const start = new Date(end);
-    start.setDate(end.getDate() - (Number.isFinite(range) ? range : 30));
-    const startIso = new Date(start.getTime() - start.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-    const endIso = new Date(end.getTime() - end.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-    return { startDate: startIso, endDate: endIso };
-  }, [commitDateRange, commitDate]);
+    const formatLocal = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const parseYMD = (s: string) => {
+      const [y, m, d] = s.split('-').map(Number);
+      return new Date(y, (m || 1) - 1, d || 1);
+    };
+
+    const endLocal = appliedDate ? parseYMD(appliedDate) : new Date();
+    const range = parseInt(appliedDateRange || '30');
+    const startLocal = new Date(endLocal);
+    startLocal.setDate(endLocal.getDate() - (Number.isFinite(range) ? range : 30));
+    return { startDate: formatLocal(startLocal), endDate: formatLocal(endLocal) };
+  }, [appliedDateRange, appliedDate]);
 
   useEffect(() => {
     const load = async () => {
@@ -65,12 +85,12 @@ const Dashboard = () => {
         const params = {
           startDate,
           endDate,
-          category: commitCategory !== 'all' ? commitCategory : undefined,
-          searchTerm: commitSearchTerm || undefined,
+          category: appliedCategory !== 'all' ? appliedCategory : undefined,
+          searchTerm: appliedSearchTerm || undefined,
           // Do not send exact date to APIs; we anchor endDate via commitDate
         } as const;
 
-        const [ov, ts, cat, reg, top, ages, recent, cats] = await Promise.all([
+        const [ov, ts, cat, reg, top, ages, recent, cats, paged] = await Promise.all([
           fetchOverview(params),
           fetchTimeseries({ ...params, granularity: 'day' }),
           fetchByCategory(params),
@@ -79,6 +99,7 @@ const Dashboard = () => {
           fetchAgeBuckets(params),
           fetchRecentSales(params, 200),
           fetchCategories(),
+          fetchSalesPaged(params, tablePage, tableLimit),
         ]);
         setOverview(ov);
         setSeries({ labels: ts.labels, revenue: ts.revenue, units: ts.units, aov: ts.aov });
@@ -86,8 +107,9 @@ const Dashboard = () => {
         setByRegion(reg);
         setTopProducts({ labels: top.labels, values: top.values });
         setAgeBuckets(ages);
-        // Build histogram of amounts (simple fixed bins)
-        const series = histogramMetric === 'amount' ? recent.map((s) => s.amount) : recent.map((s) => s.quantity);
+        setRecentSales(recent);
+        // Build histogram (simple fixed bins) based on selected metric
+        const series = (histogramMetric === 'amount' ? recent.map((s) => s.amount) : recent.map((s) => s.quantity)) as number[];
         const max = Math.max(0, ...series);
         const binCount = 10;
         const binSize = max > 0 ? Math.ceil(max / binCount) : 1;
@@ -108,6 +130,8 @@ const Dashboard = () => {
         }
         setHistogram({ labels, counts });
         setCategoriesList(['all', ...cats.categories]);
+        setTableSales(paged.sales);
+        setTablePages(paged.pagination.pages);
       } catch (e) {
         console.error(e);
       } finally {
@@ -115,125 +139,103 @@ const Dashboard = () => {
       }
     };
     load();
-  }, [startDate, endDate, commitCategory, commitSearchTerm, commitDate]);
+  }, [startDate, endDate, appliedCategory, appliedSearchTerm, appliedDate, tablePage, tableLimit]);
+
+  useEffect(() => {
+    // Recompute histogram when metric toggle changes
+    if (!recentSales) return;
+    const series = histogramMetric === 'amount' ? recentSales.map((s) => s.amount) : recentSales.map((s) => s.quantity);
+    const max = Math.max(0, ...series);
+    const binCount = 10;
+    const binSize = max > 0 ? Math.ceil(max / binCount) : 1;
+    const labels: string[] = [];
+    const counts = new Array(binCount).fill(0);
+    for (let i = 0; i < binCount; i++) {
+      const from = i * binSize;
+      const to = i === binCount - 1 ? max : (i + 1) * binSize - 1;
+      labels.push(
+        histogramMetric === 'amount'
+          ? `$${from.toLocaleString()} - $${to.toLocaleString()}`
+          : `${from.toLocaleString()} - ${to.toLocaleString()}`
+      );
+    }
+    for (const v of series) {
+      const idx = Math.min(Math.floor(v / binSize), binCount - 1);
+      counts[idx] += 1;
+    }
+    setHistogram({ labels, counts });
+  }, [histogramMetric, recentSales]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-600">Bienvenido al panel de control de DataMobile</p>
+      {/* Header with sale search */}
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+          <p className="text-gray-600">Bienvenido al panel de control de DataMobile</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            id="sale-search"
+            type="number"
+            placeholder="Buscar venta por ID"
+            value={saleSearchId}
+            onChange={(e) => setSaleSearchId(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && saleSearchId.trim() !== '') {
+                const id = parseInt(saleSearchId.trim());
+                if (Number.isFinite(id) && id > 0) router.push(`/detalle/${id}`);
+              }
+            }}
+            className="w-64 md:w-80"
+          />
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => {
+              if (saleSearchId.trim() !== '') {
+                const id = parseInt(saleSearchId.trim());
+                if (Number.isFinite(id) && id > 0) router.push(`/detalle/${id}`);
+              }
+            }}
+          >
+            Ir
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date-range">Rango de Fechas</Label>
-              <Select value={dateRange} onValueChange={(v) => dispatch(setDateRangeAction(v))}>
-                <SelectTrigger id="date-range">
-                  <SelectValue placeholder="Seleccionar período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">Últimos 7 días</SelectItem>
-                  <SelectItem value="30">Últimos 30 días</SelectItem>
-                  <SelectItem value="90">Últimos 90 días</SelectItem>
-                  <SelectItem value="365">Último año</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="category">Categoría</Label>
-              <Select value={category} onValueChange={(v) => dispatch(setCategoryAction(v))}>
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Todas las categorías" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoriesList.map((c) => (
-                    <SelectItem key={c} value={c}>{c === 'all' ? 'Todas' : c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Fecha Específica</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarDays className="mr-2 h-4 w-4" />
-                    {localDate ? localDate.toLocaleDateString('es-CL') : 'Seleccionar fecha'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={localDate} onSelect={(d) => setLocalDate(d ?? undefined)} autoFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="search">Buscar</Label>
-              <Input id="search" type="text" placeholder="Buscar productos..." value={searchTerm} onChange={(e) => dispatch(setSearchTermAction(e.target.value))} />
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                // Commit current UI values to fetch parameters
-                setCommitDateRange(dateRange);
-                setCommitCategory(category);
-                setCommitSearchTerm(searchTerm);
-                const exact = localDate ? new Date(localDate) : undefined;
-                const exactStr = exact ? new Date(exact.getTime() - exact.getTimezoneOffset() * 60000).toISOString().slice(0, 10) : undefined;
-                dispatch(setDateAction(exactStr ?? null));
-                setCommitDate(exactStr);
-              }}
-            >
-              Aplicar Filtros
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                dispatch(resetFilters());
-                const now = new Date();
-                setLocalDate(now);
-                // Reset committed filters to defaults
-                setCommitDateRange('30');
-                setCommitCategory('all');
-                setCommitSearchTerm('');
-                const exactStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-                setCommitDate(undefined);
-              }}
-            >
-              Limpiar
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <DashboardFilters
+        dateRange={dateRange}
+        category={category}
+        searchTerm={searchTerm}
+        localDate={localDate}
+        categoriesList={categoriesList}
+        onDateRangeChange={(v) => dispatch(setDateRangeAction(v))}
+        onCategoryChange={(v) => dispatch(setCategoryAction(v))}
+        onSearchChange={(v) => dispatch(setSearchTermAction(v))}
+        setLocalDate={(d) => setLocalDate(d)}
+        onApply={() => {
+          const formatLocal = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+          };
+          const exactStr = localDate ? formatLocal(localDate) : undefined;
+          dispatch(setDateAction(exactStr ?? null));
+          dispatch(applyFilters());
+          setTablePage(1);
+        }}
+        onClear={() => {
+          dispatch(resetFilters());
+          setLocalDate(undefined);
+          setTablePage(1);
+        }}
+      />
 
       {/* KPIs - 6 cards for symmetry */}
-      {overview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-6">
-          <Card><CardHeader><CardTitle>Total Revenue</CardTitle><CardDescription>Últimos {dateRange} días</CardDescription></CardHeader><CardContent><div className="text-2xl font-bold">${overview.revenue.toLocaleString()}</div></CardContent></Card>
-          <Card><CardHeader><CardTitle>Units Sold</CardTitle><CardDescription>Últimos {dateRange} días</CardDescription></CardHeader><CardContent><div className="text-2xl font-bold">{overview.units.toLocaleString()}</div></CardContent></Card>
-          <Card><CardHeader><CardTitle>AOV</CardTitle><CardDescription>Promedio por venta</CardDescription></CardHeader><CardContent><div className="text-2xl font-bold">${overview.aov.toFixed(0)}</div></CardContent></Card>
-          <Card><CardHeader><CardTitle>Avg Price/Unit</CardTitle><CardDescription>Promedio por unidad</CardDescription></CardHeader><CardContent><div className="text-2xl font-bold">${overview.avgPricePerUnit.toFixed(0)}</div></CardContent></Card>
-          <Card><CardHeader><CardTitle>Sales Count</CardTitle><CardDescription>Total de ventas</CardDescription></CardHeader><CardContent><div className="text-2xl font-bold">{overview.count.toLocaleString()}</div></CardContent></Card>
-          <Card><CardHeader><CardTitle>Grupos</CardTitle><CardDescription>Categorías / Regiones</CardDescription></CardHeader><CardContent><div className="text-2xl font-bold">{(byCategory?.labels.length || 0)} / {(byRegion?.labels.length || 0)}</div></CardContent></Card>
-        </div>
-      )}
+      <KpiGrid overview={overview} byCategory={byCategory} byRegion={byRegion} dateRange={dateRange} />
 
       {/* Gráficos: ahora 6 cards para simetría */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -337,14 +339,60 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 6) Card de resumen para simetría */}
+        {/* 6) Recent Sales table */}
         <Card>
           <CardHeader>
-            <CardTitle>Resumen</CardTitle>
-            <CardDescription>Distribuciones y correlaciones</CardDescription>
+            <CardTitle>Ventas recientes</CardTitle>
+            <CardDescription>IDs clicables para ver detalle</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-gray-500">Explora las gráficas para más detalle.</div>
+            {tableSales && tableSales.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-600">
+                      <th className="py-2 pr-4">ID</th>
+                      <th className="py-2 pr-4">Fecha</th>
+                      <th className="py-2 pr-4">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableSales.map((s) => (
+                      <tr key={s.id} className="border-t border-gray-200">
+                        <td className="py-2 pr-4 text-blue-600">
+                          <Link href={`/detalle/${s.id}`}>{s.id}</Link>
+                        </td>
+                        <td className="py-2 pr-4">{new Date(s.date).toLocaleDateString('es-CL')}</td>
+                        <td className="py-2 pr-4">${s.amount.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex items-center justify-between mt-3">
+                  <div className="text-xs text-gray-600">Página {tablePage} de {tablePages}</div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={tablePage <= 1}
+                      onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={tablePage >= tablePages}
+                      onClick={() => setTablePage((p) => p + 1)}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">Sin datos de ventas recientes…</div>
+            )}
           </CardContent>
         </Card>
       </div>

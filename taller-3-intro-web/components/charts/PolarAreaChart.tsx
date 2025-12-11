@@ -34,5 +34,5 @@ export default function PolarAreaChart({ labels, data: values, label = 'Distribu
     },
   }
 
-  return <div className="h-64"><PolarArea data={data} options={opts as any} /></div>
+  return <div className="h-48 sm:h-64"><PolarArea data={data} options={opts as any} /></div>
 }

@@ -6,6 +6,11 @@ export type FiltersState = {
   searchTerm: string
   date: string | null
   granularity: 'day' | 'week' | 'month'
+  appliedDateRange: string
+  appliedCategory: string
+  appliedSearchTerm: string
+  appliedDate: string | null
+  appliedGranularity: 'day' | 'week' | 'month'
 }
 
 const initialState: FiltersState = {
@@ -14,6 +19,11 @@ const initialState: FiltersState = {
   searchTerm: '',
   date: null,
   granularity: 'day',
+  appliedDateRange: '30',
+  appliedCategory: 'all',
+  appliedSearchTerm: '',
+  appliedDate: null,
+  appliedGranularity: 'day',
 }
 
 const filtersSlice = createSlice({
@@ -38,8 +48,15 @@ const filtersSlice = createSlice({
     resetFilters() {
       return initialState
     },
+    applyFilters(state) {
+      state.appliedDateRange = state.dateRange
+      state.appliedCategory = state.category
+      state.appliedSearchTerm = state.searchTerm
+      state.appliedDate = state.date
+      state.appliedGranularity = state.granularity
+    },
   },
 })
 
-export const { setDateRange, setCategory, setSearchTerm, setDate, setGranularity, resetFilters } = filtersSlice.actions
+export const { setDateRange, setCategory, setSearchTerm, setDate, setGranularity, resetFilters, applyFilters } = filtersSlice.actions
 export default filtersSlice.reducer

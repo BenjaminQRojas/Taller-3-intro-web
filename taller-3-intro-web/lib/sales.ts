@@ -28,3 +28,14 @@ export async function fetchRecentSales(params: Record<string, string | number | 
   const json: SalesResponse = await res.json()
   return json.sales
 }
+
+export async function fetchSalesPaged(
+  params: Record<string, string | number | undefined>,
+  page = 1,
+  limit = 10,
+): Promise<SalesResponse> {
+  const res = await fetch(`/api/sales?${qs({ ...params, page, limit })}`)
+  if (!res.ok) throw new Error('Failed to load sales')
+  const json: SalesResponse = await res.json()
+  return json
+}
