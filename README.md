@@ -3,12 +3,12 @@
 Aplicación Next.js (App Router) con Prisma 7 y PostgreSQL que muestra un dashboard interactivo de ventas con filtros globales (Redux Toolkit), 5+ tipos de gráficos (Chart.js), tabla paginada y página de detalle. Persistimos filtros aplicados entre navegaciones y recargas usando `sessionStorage`.
 
 ## Integrantes del equipo  
-| Nombre                       | RUT             | API responsable         | Tecnología            |
+| Nombre                       | RUT             | Función responsable     | Tecnología            |
 |------------------------------|-----------------|-------------------------|-----------------------|
-| Nicolás Ignacio Peralta      | 21.004.634-8    | TheCatAPI               | FastAPI + Python      |
-| Mauricio Díaz González       | 21.227.728-2    | PokeAPI                 | Express + Node.js     |
-| Benjamín Quiroz Rojas        | 19.956.115-4    | TheMealDB               | Express + Node.js     |
-| Vicente Díaz Pastene         | 21.487.788-0    | SWAPI                   | NestJS + TypeScript   |
+| Nicolás Ignacio Peralta      | 21.004.634-8    | Wiring de todo          | Next.js + Prisma      |
+| Mauricio Díaz González       | 21.227.728-2    | Dashboard + Filtros     | Next.js + Chart.js    |
+| Benjamín Quiroz Rojas        | 19.956.115-4    | Stores                  | Next.js + Redux       |
+| Vicente Díaz Pastene         | 21.487.788-0    | Página detalles         | Next.js + Chart.js    |
 
 ## Requisitos
 
