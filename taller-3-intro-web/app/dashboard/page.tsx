@@ -4,21 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
-import { setDateRange as setDateRangeAction, setCategory as setCategoryAction, setSearchTerm as setSearchTermAction, setDate as setDateAction, resetFilters, applyFilters } from '@/store/slices/filtersSlice';
+import { setDate as setDateAction, applyFilters } from '@/store/slices/filtersSlice';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Filter, CalendarDays } from 'lucide-react';
 import DashboardFilters from '@/components/filters/DashboardFilters';
 import KpiGrid from '@/components/KpiGrid';
 import LineChart from '@/components/charts/LineChart';
 import BarChart from '@/components/charts/BarChart';
 import DoughnutChart from '@/components/charts/DoughnutChart';
-// Removed Scatter and Radar in favor of Histogram and PolarArea
 import PolarAreaChart from '@/components/charts/PolarAreaChart';
 import {
   fetchOverview,
@@ -35,11 +29,6 @@ import type { Sale, SalesResponse } from '@/lib/sales';
 const Dashboard = () => {
   const dispatch = useDispatch();
   const { dateRange, category, searchTerm, date, appliedDateRange, appliedCategory, appliedSearchTerm, appliedDate } = useSelector((state: RootState) => state.filters);
-  const parseYMDLocal = (s: string) => {
-    const [y, m, d] = s.split('-').map(Number);
-    return new Date(y, (m || 1) - 1, d || 1);
-  };
-  const [localDate, setLocalDate] = useState<Date | undefined>(date ? parseYMDLocal(date) : undefined);
 
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState<{ revenue: number; units: number; aov: number; avgPricePerUnit: number; count: number } | null>(null);
@@ -87,7 +76,6 @@ const Dashboard = () => {
           endDate,
           category: appliedCategory !== 'all' ? appliedCategory : undefined,
           searchTerm: appliedSearchTerm || undefined,
-          // Do not send exact date to APIs; we anchor endDate via commitDate
         } as const;
 
         const [ov, ts, cat, reg, top, ages, recent, cats, paged] = await Promise.all([
@@ -108,7 +96,7 @@ const Dashboard = () => {
         setTopProducts({ labels: top.labels, values: top.values });
         setAgeBuckets(ages);
         setRecentSales(recent);
-        // Build histogram (simple fixed bins) based on selected metric
+
         const series = (histogramMetric === 'amount' ? recent.map((s) => s.amount) : recent.map((s) => s.quantity)) as number[];
         const max = Math.max(0, ...series);
         const binCount = 10;
@@ -142,7 +130,6 @@ const Dashboard = () => {
   }, [startDate, endDate, appliedCategory, appliedSearchTerm, appliedDate, tablePage, tableLimit]);
 
   useEffect(() => {
-    // Recompute histogram when metric toggle changes
     if (!recentSales) return;
     const series = histogramMetric === 'amount' ? recentSales.map((s) => s.amount) : recentSales.map((s) => s.quantity);
     const max = Math.max(0, ...series);
@@ -168,7 +155,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-      {/* Header with sale search */}
+      {}
       <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
@@ -204,34 +191,49 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Filtros (nueva implementación controlada por Redux internamente) */}
+      {}
       <DashboardFilters
         categoriesList={categoriesList}
         onApplyFilters={(filters) => {
-          // filters contain { dateRange, category, searchTerm, date }
-          // Set the date in Redux and then mark applied snapshot
           dispatch(setDateAction(filters.date ?? null));
           dispatch(applyFilters());
           setTablePage(1);
         }}
       />
 
-      {/* KPIs - 6 cards for symmetry */}
+      {}
+      <div className="mb-6 text-sm text-gray-800 flex flex-wrap items-center gap-2">
+        <span className="font-medium">Filtros aplicados:</span>
+        <span className="px-2 py-1 rounded bg-gray-100">Rango: {appliedDateRange || '30'} días</span>
+        <span className="px-2 py-1 rounded bg-gray-100">Categoría: {appliedCategory === 'all' ? 'Todas' : appliedCategory}</span>
+        {appliedDate && (
+          <span className="px-2 py-1 rounded bg-gray-100">
+            Fecha: {(() => { const [y,m,d] = (appliedDate as string).split('-').map(Number); return new Date(y,(m||1)-1,(d||1)).toLocaleDateString('es-CL'); })()}
+          </span>
+        )}
+        {appliedSearchTerm && (
+          <span className="px-2 py-1 rounded bg-gray-100">Buscar: "{appliedSearchTerm}"</span>
+        )}
+      </div>
+
+      {}
       <KpiGrid overview={overview} byCategory={byCategory} byRegion={byRegion} dateRange={dateRange} />
 
-      {/* Gráficos: ahora 6 cards para simetría */}
+      {}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* 1) Line: Revenue over time */}
+        {}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue over time</CardTitle>
-            <CardDescription>Granularity: día</CardDescription>
+            <CardTitle>Ingresos a lo largo del tiempo</CardTitle>
+            <CardDescription>Granularidad: día</CardDescription>
           </CardHeader>
           <CardContent>
             {series ? (
               <LineChart labels={series.labels} datasets={[{ label: 'Revenue', data: series.revenue, borderColor: '#6b8afd' }]} />
+            ) : loading ? (
+              <div className="h-40 rounded bg-gray-100 animate-pulse" />
             ) : (
-              <div className="text-sm text-gray-500">Cargando…</div>
+              <div className="text-sm text-gray-500">Sin datos…</div>
             )}
           </CardContent>
         </Card>
@@ -239,7 +241,7 @@ const Dashboard = () => {
         {/* 2) Bar: Revenue by categoría + Top productos por revenue (en el mismo card) */}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue por categoría</CardTitle>
+            <CardTitle>Ingresos por categoría</CardTitle>
             <CardDescription>Distribución y Top productos</CardDescription>
           </CardHeader>
           <CardContent>
@@ -248,12 +250,16 @@ const Dashboard = () => {
                 <BarChart labels={byCategory.labels} datasets={[{ label: 'Revenue por categoría', data: byCategory.revenue, backgroundColor: '#7bdff2' }]} />
                 {topProducts ? (
                   <BarChart labels={topProducts.labels} datasets={[{ label: 'Top productos por revenue', data: topProducts.values, backgroundColor: '#9b5de5' }]} />
+                ) : loading ? (
+                  <div className="h-32 rounded bg-gray-100 animate-pulse" />
                 ) : (
-                  <div className="text-sm text-gray-500">Cargando top productos…</div>
+                  <div className="text-sm text-gray-500">Sin datos…</div>
                 )}
               </div>
+            ) : loading ? (
+              <div className="h-40 rounded bg-gray-100 animate-pulse" />
             ) : (
-              <div className="text-sm text-gray-500">Cargando…</div>
+              <div className="text-sm text-gray-500">Sin datos…</div>
             )}
           </CardContent>
         </Card>
@@ -267,8 +273,10 @@ const Dashboard = () => {
           <CardContent>
             {byRegion ? (
               <DoughnutChart labels={byRegion.labels} data={byRegion.units} />
+            ) : loading ? (
+              <div className="h-40 rounded bg-gray-100 animate-pulse" />
             ) : (
-              <div className="text-sm text-gray-500">Cargando…</div>
+              <div className="text-sm text-gray-500">Sin datos…</div>
             )}
           </CardContent>
         </Card>
@@ -300,8 +308,10 @@ const Dashboard = () => {
           <CardContent>
             {histogram ? (
               <BarChart labels={histogram.labels} datasets={[{ label: histogramMetric === 'amount' ? 'Ventas por rango de monto' : 'Ventas por rango de unidades', data: histogram.counts, backgroundColor: '#f4a261' }]} />
+            ) : loading ? (
+              <div className="h-40 rounded bg-gray-100 animate-pulse" />
             ) : (
-              <div className="text-sm text-gray-500">Cargando…</div>
+              <div className="text-sm text-gray-500">Sin datos…</div>
             )}
           </CardContent>
         </Card>
@@ -309,14 +319,16 @@ const Dashboard = () => {
         {/* 5) Polar Area: Revenue por rango de edad */}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue por rango de edad</CardTitle>
+            <CardTitle>Ingresos por rango de edad</CardTitle>
             <CardDescription>Distribución por rangos</CardDescription>
           </CardHeader>
           <CardContent>
             {ageBuckets ? (
               <PolarAreaChart labels={ageBuckets.labels} data={ageBuckets.revenue} />
+            ) : loading ? (
+              <div className="h-40 rounded bg-gray-100 animate-pulse" />
             ) : (
-              <div className="text-sm text-gray-500">Cargando…</div>
+              <div className="text-sm text-gray-500">Sin datos…</div>
             )}
           </CardContent>
         </Card>
@@ -371,6 +383,12 @@ const Dashboard = () => {
                     </Button>
                   </div>
                 </div>
+              </div>
+            ) : loading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-6 rounded bg-gray-100 animate-pulse" />
+                ))}
               </div>
             ) : (
               <div className="text-sm text-gray-500">Sin datos de ventas recientes…</div>

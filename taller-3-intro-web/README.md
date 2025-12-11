@@ -168,6 +168,7 @@ Detalle: `/detalle/[id]`
 - Tailwind CSS para diseño responsive (mobile-first).
 - Componentes UI (`components/ui`): Card, Button, Select, Popover, Calendar, Input.
 - Gráficos en `components/charts/*` con configuración responsive.
+- Filtros en `components/filters/*`
 
 ## Requisitos del taller (checklist)
 

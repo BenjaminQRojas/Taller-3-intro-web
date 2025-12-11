@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import {
@@ -31,16 +31,30 @@ interface DashboardFiltersProps {
 const DashboardFilters: React.FC<DashboardFiltersProps> = ({ categoriesList, onApplyFilters }) => {
   const dispatch = useDispatch();
   const { dateRange, category, searchTerm, date } = useSelector((state: RootState) => state.filters);
-  const [localDate, setLocalDate] = useState<Date | undefined>(date ? new Date(date) : new Date());
+
+  const parseLocalYMD = (s: string | null): Date | undefined => {
+    if (!s) return undefined;
+    const [y, m, d] = s.split('-').map((v) => parseInt(v, 10));
+    if (!y || !m || !d) return undefined;
+    return new Date(y, m - 1, d);
+  };
+
+  const formatLocalYMD = (dt: Date): string => {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const initialLocalDate = useMemo(() => parseLocalYMD(date ?? null) ?? new Date(), [date]);
+  const [localDate, setLocalDate] = useState<Date | undefined>(initialLocalDate);
 
   const handleApplyFilters = () => {
     const exact = localDate ? new Date(localDate) : undefined;
-    const exactStr = exact
-      ? new Date(exact.getTime() - exact.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
-      : undefined;
-    
+    const exactStr = exact ? formatLocalYMD(exact) : undefined;
+
     dispatch(setDateAction(exactStr ?? null));
-    
+
     onApplyFilters({
       dateRange,
       category,
@@ -53,11 +67,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({ categoriesList, onA
     dispatch(resetFilters());
     const now = new Date();
     setLocalDate(now);
-    
-    const exactStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 10);
-    
+
     onApplyFilters({
       dateRange: '30',
       category: 'all',

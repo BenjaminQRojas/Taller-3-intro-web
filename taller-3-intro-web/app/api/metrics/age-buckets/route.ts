@@ -53,7 +53,6 @@ export async function GET(request: NextRequest) {
       revenue.push(0)
     }
 
-    // last bucket open-ended
     labels.push(`${buckets[buckets.length - 1]}+`)
     count.push(0)
     revenue.push(0)
