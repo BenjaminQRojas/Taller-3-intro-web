@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
 
   const category = searchParams.get('category') ?? undefined;
   const region = searchParams.get('region') ?? undefined;
+  const searchTerm = searchParams.get('searchTerm') ?? undefined;
 
   const minAmountStr = searchParams.get('minAmount');
   const maxAmountStr = searchParams.get('maxAmount');
@@ -61,6 +62,12 @@ export async function GET(request: NextRequest) {
         }
       : {};
 
+
+  const searchFilter =
+    searchTerm && searchTerm.trim() !== ''
+      ? { product: { contains: searchTerm, mode: 'insensitive' } as any }
+      : {};
+
   try {
     const where = {
       ...(category && { category }),
@@ -68,6 +75,7 @@ export async function GET(request: NextRequest) {
       ...amountFilter,
       ...ageFilter,
       ...dateFilter,
+      ...searchFilter,
     } as const;
 
     const [sales, total] = await Promise.all([

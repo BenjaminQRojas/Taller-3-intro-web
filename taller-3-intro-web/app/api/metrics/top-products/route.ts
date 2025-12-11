@@ -12,6 +12,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const startDate = parseDate(searchParams.get('startDate'))
   const endDate = parseDate(searchParams.get('endDate'))
+  const category = searchParams.get('category') ?? undefined
+  const region = searchParams.get('region') ?? undefined
+  const searchTerm = searchParams.get('searchTerm') ?? undefined
   const sort = (searchParams.get('sort') ?? 'revenue') as 'revenue' | 'units'
   const limit = Math.max(1, Math.min(50, parseInt(searchParams.get('limit') || '10')))
 
@@ -24,6 +27,9 @@ export async function GET(request: NextRequest) {
           },
         }
       : {}),
+    ...(category && { category }),
+    ...(region && { region }),
+    ...(searchTerm && { product: { contains: searchTerm, mode: 'insensitive' } as any }),
   } as const
 
   try {

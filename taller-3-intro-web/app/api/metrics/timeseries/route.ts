@@ -34,12 +34,14 @@ export async function GET(request: NextRequest) {
   const endDate = parseDate(searchParams.get('endDate'))
   const category = searchParams.get('category') ?? undefined
   const region = searchParams.get('region') ?? undefined
+  const searchTerm = searchParams.get('searchTerm') ?? undefined
   const granParam = (searchParams.get('granularity') as Granularity) || 'day'
   const granularity: Granularity = ['day', 'week', 'month'].includes(granParam) ? granParam : 'day'
 
   const where = {
     ...(category && { category }),
     ...(region && { region }),
+    ...(searchTerm && { product: { contains: searchTerm, mode: 'insensitive' } as any }),
     ...(startDate || endDate
       ? {
           date: {

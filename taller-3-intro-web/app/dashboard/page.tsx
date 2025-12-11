@@ -14,8 +14,7 @@ import { Filter, CalendarDays } from 'lucide-react';
 import LineChart from '@/components/charts/LineChart';
 import BarChart from '@/components/charts/BarChart';
 import DoughnutChart from '@/components/charts/DoughnutChart';
-import ScatterChart from '@/components/charts/ScatterChart';
-import RadarChart from '@/components/charts/RadarChart';
+// Removed Scatter and Radar in favor of Histogram and PolarArea
 import PolarAreaChart from '@/components/charts/PolarAreaChart';
 import {
   fetchOverview,
@@ -24,6 +23,7 @@ import {
   fetchByRegion,
   fetchTopProducts,
   fetchAgeBuckets,
+  fetchCategories,
 } from '@/lib/metrics';
 import { fetchRecentSales } from '@/lib/sales';
 
@@ -31,6 +31,11 @@ const Dashboard = () => {
   const dispatch = useDispatch();
   const { dateRange, category, searchTerm, date } = useSelector((state: RootState) => state.filters);
   const [localDate, setLocalDate] = useState<Date | undefined>(date ? new Date(date) : new Date());
+  // Committed filters used for data fetching (apply-only updates)
+  const [commitDateRange, setCommitDateRange] = useState<string>(dateRange);
+  const [commitCategory, setCommitCategory] = useState<string>(category);
+  const [commitSearchTerm, setCommitSearchTerm] = useState<string>(searchTerm);
+  const [commitDate, setCommitDate] = useState<string | undefined>(date || undefined);
 
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState<{ revenue: number; units: number; aov: number; avgPricePerUnit: number; count: number } | null>(null);
@@ -39,15 +44,19 @@ const Dashboard = () => {
   const [byRegion, setByRegion] = useState<{ labels: string[]; revenue: number[]; units: number[] } | null>(null);
   const [topProducts, setTopProducts] = useState<{ labels: string[]; values: number[] } | null>(null);
   const [ageBuckets, setAgeBuckets] = useState<{ labels: string[]; count: number[]; revenue: number[] } | null>(null);
-  const [scatterPoints, setScatterPoints] = useState<{ x: number; y: number }[] | null>(null);
+  const [histogram, setHistogram] = useState<{ labels: string[]; counts: number[] } | null>(null);
+  const [histogramMetric, setHistogramMetric] = useState<'amount' | 'quantity'>('amount');
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
   const { startDate, endDate } = useMemo(() => {
-    const end = new Date();
-    const range = parseInt(dateRange || '30');
+    const end = commitDate ? new Date(commitDate) : new Date();
+    const range = parseInt(commitDateRange || '30');
     const start = new Date(end);
     start.setDate(end.getDate() - (Number.isFinite(range) ? range : 30));
-    return { startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) };
-  }, [dateRange]);
+    const startIso = new Date(start.getTime() - start.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    const endIso = new Date(end.getTime() - end.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    return { startDate: startIso, endDate: endIso };
+  }, [commitDateRange, commitDate]);
 
   useEffect(() => {
     const load = async () => {
@@ -56,10 +65,12 @@ const Dashboard = () => {
         const params = {
           startDate,
           endDate,
-          category: category !== 'all' ? category : undefined,
+          category: commitCategory !== 'all' ? commitCategory : undefined,
+          searchTerm: commitSearchTerm || undefined,
+          // Do not send exact date to APIs; we anchor endDate via commitDate
         } as const;
 
-        const [ov, ts, cat, reg, top, ages, recent] = await Promise.all([
+        const [ov, ts, cat, reg, top, ages, recent, cats] = await Promise.all([
           fetchOverview(params),
           fetchTimeseries({ ...params, granularity: 'day' }),
           fetchByCategory(params),
@@ -67,6 +78,7 @@ const Dashboard = () => {
           fetchTopProducts({ ...params, sort: 'revenue', limit: 10 }),
           fetchAgeBuckets(params),
           fetchRecentSales(params, 200),
+          fetchCategories(),
         ]);
         setOverview(ov);
         setSeries({ labels: ts.labels, revenue: ts.revenue, units: ts.units, aov: ts.aov });
@@ -74,7 +86,28 @@ const Dashboard = () => {
         setByRegion(reg);
         setTopProducts({ labels: top.labels, values: top.values });
         setAgeBuckets(ages);
-        setScatterPoints(recent.map((s) => ({ x: s.quantity, y: s.amount })));
+        // Build histogram of amounts (simple fixed bins)
+        const series = histogramMetric === 'amount' ? recent.map((s) => s.amount) : recent.map((s) => s.quantity);
+        const max = Math.max(0, ...series);
+        const binCount = 10;
+        const binSize = max > 0 ? Math.ceil(max / binCount) : 1;
+        const labels: string[] = [];
+        const counts = new Array(binCount).fill(0);
+        for (let i = 0; i < binCount; i++) {
+          const from = i * binSize;
+          const to = i === binCount - 1 ? max : (i + 1) * binSize - 1;
+          labels.push(
+            histogramMetric === 'amount'
+              ? `$${from.toLocaleString()} - $${to.toLocaleString()}`
+              : `${from.toLocaleString()} - ${to.toLocaleString()}`
+          );
+        }
+        for (const v of series) {
+          const idx = Math.min(Math.floor(v / binSize), binCount - 1);
+          counts[idx] += 1;
+        }
+        setHistogram({ labels, counts });
+        setCategoriesList(['all', ...cats.categories]);
       } catch (e) {
         console.error(e);
       } finally {
@@ -82,7 +115,7 @@ const Dashboard = () => {
       }
     };
     load();
-  }, [startDate, endDate, category]);
+  }, [startDate, endDate, commitCategory, commitSearchTerm, commitDate]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
@@ -124,7 +157,9 @@ const Dashboard = () => {
                   <SelectValue placeholder="Todas las categorías" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
+                  {categoriesList.map((c) => (
+                    <SelectItem key={c} value={c}>{c === 'all' ? 'Todas' : c}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -155,7 +190,14 @@ const Dashboard = () => {
               variant="default"
               size="sm"
               onClick={() => {
-                dispatch(setDateAction(localDate ? new Date(localDate).toISOString().slice(0, 10) : null));
+                // Commit current UI values to fetch parameters
+                setCommitDateRange(dateRange);
+                setCommitCategory(category);
+                setCommitSearchTerm(searchTerm);
+                const exact = localDate ? new Date(localDate) : undefined;
+                const exactStr = exact ? new Date(exact.getTime() - exact.getTimezoneOffset() * 60000).toISOString().slice(0, 10) : undefined;
+                dispatch(setDateAction(exactStr ?? null));
+                setCommitDate(exactStr);
               }}
             >
               Aplicar Filtros
@@ -165,7 +207,14 @@ const Dashboard = () => {
               size="sm"
               onClick={() => {
                 dispatch(resetFilters());
-                setLocalDate(new Date());
+                const now = new Date();
+                setLocalDate(now);
+                // Reset committed filters to defaults
+                setCommitDateRange('30');
+                setCommitCategory('all');
+                setCommitSearchTerm('');
+                const exactStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                setCommitDate(undefined);
               }}
             >
               Limpiar
@@ -240,15 +289,33 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 4) Scatter: Amount vs Quantity (correlación) */}
+        {/* 4) Histogram: Distribución de montos */}
         <Card>
           <CardHeader>
-            <CardTitle>Relación monto vs unidades</CardTitle>
-            <CardDescription>Correlación</CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle>Distribución</CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant={histogramMetric === 'amount' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setHistogramMetric('amount')}
+                >
+                  Monto
+                </Button>
+                <Button
+                  variant={histogramMetric === 'quantity' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setHistogramMetric('quantity')}
+                >
+                  Unidades
+                </Button>
+              </div>
+            </div>
+            <CardDescription>Histograma de ventas recientes</CardDescription>
           </CardHeader>
           <CardContent>
-            {scatterPoints ? (
-              <ScatterChart points={scatterPoints} />
+            {histogram ? (
+              <BarChart labels={histogram.labels} datasets={[{ label: histogramMetric === 'amount' ? 'Ventas por rango de monto' : 'Ventas por rango de unidades', data: histogram.counts, backgroundColor: '#f4a261' }]} />
             ) : (
               <div className="text-sm text-gray-500">Cargando…</div>
             )}

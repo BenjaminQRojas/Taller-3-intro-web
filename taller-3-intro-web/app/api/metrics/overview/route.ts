@@ -14,10 +14,12 @@ export async function GET(request: NextRequest) {
   const endDate = parseDate(searchParams.get('endDate'))
   const category = searchParams.get('category') ?? undefined
   const region = searchParams.get('region') ?? undefined
+  const searchTerm = searchParams.get('searchTerm') ?? undefined
 
   const where = {
     ...(category && { category }),
     ...(region && { region }),
+    ...(searchTerm && { product: { contains: searchTerm, mode: 'insensitive' } as any }),
     ...(startDate || endDate
       ? {
           date: {

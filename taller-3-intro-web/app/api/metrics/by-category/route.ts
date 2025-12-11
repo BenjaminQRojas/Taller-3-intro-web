@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const startDate = parseDate(searchParams.get('startDate'))
   const endDate = parseDate(searchParams.get('endDate'))
+  const searchTerm = searchParams.get('searchTerm') ?? undefined
 
   const where = {
     ...(startDate || endDate
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
           },
         }
       : {}),
+    ...(searchTerm && { product: { contains: searchTerm, mode: 'insensitive' } as any }),
   } as const
 
   try {

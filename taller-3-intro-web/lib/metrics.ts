@@ -17,6 +17,7 @@ export type Timeseries = {
 export type Grouped = { labels: string[]; revenue: number[]; units: number[] }
 export type TopProducts = { labels: string[]; values: number[]; sort: 'revenue' | 'units' }
 export type AgeBuckets = { labels: string[]; count: number[]; revenue: number[] }
+export type Categories = { categories: string[] }
 
 function qs(params: Record<string, string | number | undefined>) {
   const search = new URLSearchParams()
@@ -59,5 +60,11 @@ export async function fetchTopProducts(params: Record<string, string | number | 
 export async function fetchAgeBuckets(params: Record<string, string | number | undefined>): Promise<AgeBuckets> {
   const res = await fetch(`/api/metrics/age-buckets?${qs(params)}`)
   if (!res.ok) throw new Error('Failed to load age-buckets')
+  return res.json()
+}
+
+export async function fetchCategories(): Promise<Categories> {
+  const res = await fetch(`/api/categories`)
+  if (!res.ok) throw new Error('Failed to load categories')
   return res.json()
 }
